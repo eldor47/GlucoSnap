@@ -1,0 +1,43 @@
+{
+  "expo": {
+    "name": "GlucoSnap",
+    "slug": "glucosnap",
+    "scheme": "glucosnap",
+    "owner": "barthinator",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    
+    "userInterfaceStyle": "light",
+    "splash": {
+      "backgroundColor": "#1F1246",
+      "resizeMode": "contain"
+    },
+    "androidStatusBar": {
+      "backgroundColor": "#1F1246",
+      "barStyle": "light-content"
+    },
+    "updates": {
+      "fallbackToCacheTimeout": 0
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.eldor.glucosnap"
+    },
+    "android": {
+      "package": "com.eldor.glucosnap",
+      "permissions": [
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE"
+      ]
+    },
+    "extra": {
+      "apiBaseUrl": "https://jq1g464hh6.execute-api.us-east-1.amazonaws.com/prod/", 
+      "googleClientId": "673538605636-8k93n960rop48g5v4kpvlq8jcgi295ab.apps.googleusercontent.com",
+      "androidClientId": "673538605636-an9o0c37m72uddohjbp0ocl168oaf5f0.apps.googleusercontent.com"
+    }
+  }
+}

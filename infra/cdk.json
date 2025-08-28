@@ -1,0 +1,10 @@
+{
+  "app": "npx ts-node --transpile-only bin/infra.ts",
+  "context": {
+    "@aws-cdk/core:newStyleStackSynthesis": true,
+    "stackName": "GlucoSnap",
+    "googleClientId": "673538605636-8k93n960rop48g5v4kpvlq8jcgi295ab.apps.googleusercontent.com",
+    "googleClientIds": "673538605636-8k93n960rop48g5v4kpvlq8jcgi295ab.apps.googleusercontent.com,673538605636-an9o0c37m72uddohjbp0ocl168oaf5f0.apps.googleusercontent.com",
+    "openaiApiKeyParamName": "/glucosnap/openai/apiKey"
+  }
+}
