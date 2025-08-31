@@ -15,23 +15,23 @@ export const MockAdDisplay: React.FC<MockAdDisplayProps> = ({
   onAdSkip,
   onAdError,
 }) => {
-  const [countdown, setCountdown] = useState(15);
+  const [countdown, setCountdown] = useState(3);
   const [isLoading, setIsLoading] = useState(true);
   const [showAd, setShowAd] = useState(false);
 
   useEffect(() => {
     if (isVisible) {
       console.log('📺 [MOCK] Loading simulated ad...');
-      setCountdown(15);
+      setCountdown(3);
       setIsLoading(true);
       setShowAd(false);
       
-      // Simulate ad loading time (2-3 seconds)
+      // Simulate ad loading time (much faster)
       const loadingTimer = setTimeout(() => {
         console.log('✅ [MOCK] Simulated ad loaded');
         setIsLoading(false);
         setShowAd(true);
-      }, 2500);
+      }, 500);
 
       return () => clearTimeout(loadingTimer);
     }
@@ -109,7 +109,7 @@ export const MockAdDisplay: React.FC<MockAdDisplayProps> = ({
                     <View 
                       style={[
                         styles.progressFill, 
-                        { width: `${((15 - countdown) / 15) * 100}%` }
+                        { width: `${((3 - countdown) / 3) * 100}%` }
                       ]} 
                     />
                   </View>
@@ -118,21 +118,20 @@ export const MockAdDisplay: React.FC<MockAdDisplayProps> = ({
 
               <View style={styles.actionContainer}>
                 {countdown > 0 ? (
-                  <TouchableOpacity 
-                    style={[
-                      styles.skipButton,
-                      countdown > 5 && styles.skipButtonDisabled
-                    ]} 
-                    onPress={handleSkip}
-                    disabled={countdown > 5}
-                  >
-                    <Text style={[
-                      styles.skipButtonText,
-                      countdown > 5 && styles.skipButtonTextDisabled
-                    ]}>
-                      {countdown > 5 ? `Skip (${countdown - 5}s)` : 'Skip Ad'}
-                    </Text>
-                  </TouchableOpacity>
+                  <View style={styles.buttonRow}>
+                    <TouchableOpacity 
+                      style={styles.skipButton} 
+                      onPress={handleSkip}
+                    >
+                      <Text style={styles.skipButtonText}>Skip Ad</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity 
+                      style={styles.confirmButton} 
+                      onPress={handleComplete}
+                    >
+                      <Text style={styles.confirmButtonText}>Confirm & Continue</Text>
+                    </TouchableOpacity>
+                  </View>
                 ) : (
                   <TouchableOpacity style={styles.continueButton} onPress={handleComplete}>
                     <Text style={styles.continueButtonText}>Continue</Text>
@@ -263,23 +262,34 @@ const styles = StyleSheet.create({
   actionContainer: {
     alignItems: 'center',
   },
+  buttonRow: {
+    flexDirection: 'row',
+    gap: 12,
+    justifyContent: 'center',
+  },
   skipButton: {
     paddingVertical: 12,
-    paddingHorizontal: 24,
+    paddingHorizontal: 20,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: colors.border,
-  },
-  skipButtonDisabled: {
-    opacity: 0.5,
+    backgroundColor: colors.surface,
   },
   skipButtonText: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
     color: colors.subtext,
   },
-  skipButtonTextDisabled: {
-    color: colors.border,
+  confirmButton: {
+    backgroundColor: colors.primary,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+  },
+  confirmButtonText: {
+    color: colors.white,
+    fontSize: 14,
+    fontWeight: '700',
   },
   continueButton: {
     backgroundColor: colors.primary,

@@ -88,10 +88,10 @@ async function handleGetSubscriptionStatus(event: APIGatewayProxyEvent): Promise
     // Default to free plan if no subscription exists
     const plan = subscription?.plan || 'free';
     const scansUsed = usage?.scansUsed || 0;
-    const scansLimit = plan === 'premium' ? 999999 : 10; // Premium: unlimited, Free: 10/day
-    const remainingScans = Math.max(0, scansLimit - scansUsed);
-    const canScan = plan === 'premium' || remainingScans > 0;
-    const requiresAd = plan === 'free' && remainingScans > 0;
+    const scansLimit = plan === 'premium' ? 999999 : 999999; // No daily limits - unlimited with ads after 3 free
+    const remainingScans = 999999; // Always unlimited remaining scans
+    const canScan = true; // Always allow scans (ads handle monetization)
+    const requiresAd = plan === 'free' && scansUsed >= 3; // Ad required after 3 free scans
 
     return {
       statusCode: 200,
@@ -254,7 +254,7 @@ async function handleTrackUsage(event: APIGatewayProxyEvent): Promise<APIGateway
         userId,
         date: today,
         scansUsed: action === 'scan' ? 1 : 0,
-        scansLimit: 10, // Default to free plan limit
+        scansLimit: 999999, // No daily limit - unlimited with ads
         adsWatched: action === 'ad_watched' || adWatched ? 1 : 0,
         lastScanAt: action === 'scan' ? now : undefined,
       };
@@ -273,8 +273,8 @@ async function handleTrackUsage(event: APIGatewayProxyEvent): Promise<APIGateway
 
     const subscription = subscriptionResult.Item ? unmarshall(subscriptionResult.Item) as Subscription : null;
     const plan = subscription?.plan || 'free';
-    const scansLimit = plan === 'premium' ? 999999 : 10;
-    const remainingScans = Math.max(0, scansLimit - (usage.scansUsed + (action === 'scan' ? 1 : 0)));
+    const scansLimit = 999999; // No daily limits - unlimited with ads
+    const remainingScans = 999999; // Always unlimited remaining scans
 
     return {
       statusCode: 200,
@@ -287,7 +287,7 @@ async function handleTrackUsage(event: APIGatewayProxyEvent): Promise<APIGateway
           remainingScans,
           adsWatched: usage.adsWatched + (action === 'ad_watched' || adWatched ? 1 : 0),
         },
-        canContinue: plan === 'premium' || remainingScans > 0,
+        canContinue: true, // Always allow scans (ads handle monetization)
       }),
     };
   } catch (error: any) {

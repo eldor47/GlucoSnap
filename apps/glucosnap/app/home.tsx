@@ -57,7 +57,7 @@ import { useSubscription } from '../src/state/subscription';
 import { api } from '../src/services/api';
 import { addLog } from '../src/storage/logs';
 import Onboarding from '../src/components/Onboarding';
-import { SubscriptionStatus } from '../src/components/SubscriptionStatus';
+import { DailyUsageCard } from '../src/components/DailyUsageCard';
 import { SmartAdDisplay } from '../src/components/SmartAdDisplay';
 import { compressImage, estimateCostSavings } from '../src/utils/imageCompression';
 
@@ -452,8 +452,8 @@ export default function Home() {
           </View>
         </View>
 
-        {/* Subscription Status */}
-        <SubscriptionStatus />
+        {/* Daily Usage */}
+        <DailyUsageCard />
 
         {/* Debug Info (Development Only) */}
         {__DEV__ && (
@@ -551,30 +551,6 @@ export default function Home() {
         {imageUri && (
           <>
             <Image source={{ uri: imageUri }} style={{ width: '100%', aspectRatio: 1, borderRadius: 16, borderWidth: 1, borderColor: colors.border }} />
-            
-            {/* Compression info */}
-            {compressionInfo && (
-              <View style={[theme.card, { padding: 12, borderRadius: 12 }]}>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                  <Text style={[theme.text, { fontSize: 14, fontWeight: '600' }]}>Image Optimized</Text>
-                  <MaterialCommunityIcons name="check-circle" size={16} color={colors.accent} />
-                </View>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Text style={[theme.muted, { fontSize: 12 }]}>
-                    {compressionInfo.originalSize > 1024 * 1024 
-                      ? `${(compressionInfo.originalSize / (1024 * 1024)).toFixed(1)}MB` 
-                      : `${(compressionInfo.originalSize / 1024).toFixed(0)}KB`}
-                    {' → '}
-                    {compressionInfo.compressedSize > 1024 * 1024 
-                      ? `${(compressionInfo.compressedSize / (1024 * 1024)).toFixed(1)}MB` 
-                      : `${(compressionInfo.compressedSize / 1024).toFixed(0)}KB`}
-                  </Text>
-                  <Text style={[theme.text, { fontSize: 12, fontWeight: '600', color: colors.accent }]}>
-                    {((1 - compressionInfo.compressedSize / compressionInfo.originalSize) * 100).toFixed(0)}% smaller
-                  </Text>
-                </View>
-              </View>
-            )}
           </>
         )}
 
