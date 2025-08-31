@@ -29,11 +29,14 @@
     "android": {
       "package": "com.eldor.glucosnap",
       "enableEdgeToEdge": true,
+      "googleServicesFile": "./google-services.json",
       "permissions": [
         "CAMERA",
         "INTERNET",
         "READ_EXTERNAL_STORAGE",
-        "WRITE_EXTERNAL_STORAGE"
+        "WRITE_EXTERNAL_STORAGE",
+        "ACCESS_NETWORK_STATE",
+        "ACCESS_WIFI_STATE"
       ],
       "intentFilters": [
         {
@@ -52,8 +55,10 @@
       [
         "react-native-google-mobile-ads",
         {
-          "android_app_id": "ca-app-pub-1514892537757211~8757180508",
-          "ios_app_id": "ca-app-pub-1514892537757211~8757180508"
+          "react-native-google-mobile-ads": {
+            "android_app_id": "ca-app-pub-1514892537757211~8757180508",
+            "ios_app_id": "ca-app-pub-1514892537757211~8757180508"
+          }
         }
       ]
     ],

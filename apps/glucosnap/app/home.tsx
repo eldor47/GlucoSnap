@@ -84,6 +84,7 @@ export default function Home() {
   const [adsWatchedThisSession, setAdsWatchedThisSession] = useState(0); // Count of ads watched this session
   const [showAdCompleteMessage, setShowAdCompleteMessage] = useState(false); // Shows ad completion message
   const [hasAdFreePass, setHasAdFreePass] = useState(false); // Free pass after watching ad
+  const [pendingAction, setPendingAction] = useState<'camera' | 'library' | null>(null); // Store user's intended action
 
 
 
@@ -124,6 +125,7 @@ export default function Home() {
       setShowAdCompleteMessage(false);
       setShowAd(false);
       setHasAdFreePass(false);
+      setPendingAction(null);
       
       console.log('✅ Reset ads watched count for new user:', session.email);
     } else {
@@ -132,6 +134,7 @@ export default function Home() {
       setShowAdCompleteMessage(false);
       setShowAd(false);
       setHasAdFreePass(false);
+      setPendingAction(null);
     }
   }, [session?.email]); // Removed refreshSubscriptionStatus dependency
 
@@ -146,13 +149,13 @@ export default function Home() {
   };
 
   const handleAdComplete = async () => {
-    console.log('🎉 Ad completed, proceeding with image selection');
+    console.log('🎉🎉🎉 handleAdComplete called - Ad completed, proceeding with image selection');
     setShowAd(false);
     setAdsWatchedThisSession(prev => prev + 1); // Increment ads watched count
     setShowAdCompleteMessage(true); // Show completion message
     setHasAdFreePass(true); // Grant free pass for immediate scan
     console.log('🔒 Ads watched this session:', adsWatchedThisSession + 1);
-    console.log('🎫 Granted ad free pass for next scan');
+    console.log('🎫🎫🎫 Granted ad free pass for next scan - hasAdFreePass now TRUE');
     
     // Track ad completion
     await trackUsage('ad_watched');
@@ -162,30 +165,26 @@ export default function Home() {
       setShowAdCompleteMessage(false);
     }, 5000);
     
-    // Show success message and offer manual image selection
-    const currentScans = subscriptionStatus?.scansUsed || 0;
-    const adMessage = currentScans < 2 
-      ? `You have ${3 - currentScans - 1} more free scans today.`
-      : 'Watch an ad before each future scan today.';
-    Alert.alert(
-      'Ad Complete! 🎉',
-      `You can now select an image to scan. ${adMessage}`,
-      [
-        { text: 'Choose Image', onPress: () => {
-          console.log('🚀 Manual image selection triggered');
-          chooseImage();
-        }},
-        { text: 'Take Photo', onPress: () => {
-          console.log('📸 Manual photo capture triggered');
-          takePhoto();
-        }},
-        { text: 'Cancel' }
-      ]
-    );
+    // Automatically execute the user's intended action
+    if (pendingAction) {
+      console.log(`🚀 Automatically executing pending action: ${pendingAction}`);
+      setPendingAction(null); // Clear the pending action
+      
+      if (pendingAction === 'camera') {
+        await executePhotoCapture();
+      } else if (pendingAction === 'library') {
+        await executeImageSelection();
+      }
+    } else {
+      console.log('✅ Ad complete - no pending action to execute');
+    }
+    
+    console.log('🐛 Debug state after ad complete:', { hasAdFreePass: true, showAd: false, showAdCompleteMessage: true, pendingAction });
   };
 
   const handleAdSkip = () => {
     setShowAd(false);
+    setPendingAction(null); // Clear pending action when ad is skipped
     Alert.alert(
       'Ad Skipped',
       'You can upgrade to Premium to avoid ads.',
@@ -198,6 +197,7 @@ export default function Home() {
 
   const handleAdError = () => {
     setShowAd(false);
+    setPendingAction(null); // Clear pending action when ad errors
     Alert.alert(
       'Ad Error',
       'There was an issue loading the ad. Please try again or upgrade to Premium.',
@@ -211,34 +211,9 @@ export default function Home() {
 
 
 
-  const chooseImage = async () => {
-    console.log('🖼️ chooseImage called with:');
-    console.log('  - current user:', session?.email);
-    console.log('  - subscriptionStatus:', subscriptionStatus);
-    console.log('  - adsWatchedThisSession:', adsWatchedThisSession);
-    console.log('  - canScan:', subscriptionStatus?.canScan);
-    console.log('  - plan:', subscriptionStatus?.plan);
-    console.log('  - scansUsed:', subscriptionStatus?.scansUsed);
-    
-    // No daily limits anymore - free users get unlimited scans with ads after 3 free
-
-    // Show ad for free users after their 3 free daily scans (unless they have a free pass)
-    const nextScanNumber = (subscriptionStatus?.scansUsed || 0) + 1;
-    if (subscriptionStatus?.plan === 'free' && nextScanNumber > 3 && !hasAdFreePass) {
-      console.log(`📺 Showing ad for free user (scan ${nextScanNumber}, ad required after 3 free scans)`);
-      setShowAd(true);
-      return;
-    }
-    
-    // If they have a free pass, consume it
-    if (hasAdFreePass) {
-      console.log('🎫 Using ad free pass for this scan');
-      setHasAdFreePass(false);
-    }
-    
-    console.log('✅ Proceeding with image selection (ad not required or still in free tier)');
-
-    console.log('🔐 Requesting media library permissions...');
+  // Execute the actual image selection (without ad logic)
+  const executeImageSelection = async () => {
+    console.log('📚 Executing image selection...');
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     console.log('🔑 Media library permission status:', status);
     
@@ -259,6 +234,68 @@ export default function Home() {
     }
   };
 
+  const chooseImage = async () => {
+    console.log('🖼️🖼️🖼️ chooseImage called with:');
+    console.log('  - current user:', session?.email);
+    console.log('  - subscriptionStatus:', subscriptionStatus);
+    console.log('  - adsWatchedThisSession:', adsWatchedThisSession);
+    console.log('  - canScan:', subscriptionStatus?.canScan);
+    console.log('  - plan:', subscriptionStatus?.plan);
+    console.log('  - scansUsed:', subscriptionStatus?.scansUsed);
+    console.log('  - hasAdFreePass:', hasAdFreePass);
+    console.log('  - showAd:', showAd);
+    
+    // No daily limits anymore - free users get unlimited scans with ads after 3 free
+
+    // Show ad for free users after their 3 free daily scans (unless they have a free pass)
+    const nextScanNumber = (subscriptionStatus?.scansUsed || 0) + 1;
+    console.log('🔍 Ad check:', { 
+      plan: subscriptionStatus?.plan, 
+      nextScanNumber, 
+      needsAd: nextScanNumber > 3, 
+      hasAdFreePass,
+      finalDecision: subscriptionStatus?.plan === 'free' && nextScanNumber > 3 && !hasAdFreePass ? 'SHOW_AD' : 'PROCEED'
+    });
+    
+    if (subscriptionStatus?.plan === 'free' && nextScanNumber > 3 && !hasAdFreePass) {
+      console.log(`📺📺📺 Showing ad for free user (scan ${nextScanNumber}, ad required after 3 free scans)`);
+      console.log('📝 Setting pending action: library');
+      setPendingAction('library'); // Store the user's intent
+      setShowAd(true);
+      return;
+    }
+    
+    // If they have a free pass, consume it
+    if (hasAdFreePass) {
+      console.log('🎫 Using ad free pass for this scan');
+      setHasAdFreePass(false);
+    }
+    
+    console.log('✅ Proceeding with image selection (ad not required or still in free tier)');
+    await executeImageSelection();
+  };
+
+  // Execute the actual photo capture (without ad logic)
+  const executePhotoCapture = async () => {
+    console.log('📸 Executing photo capture...');
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      console.log('❌ Camera permission denied');
+      return;
+    }
+    
+    console.log('📸 Launching camera...');
+    const shot = await ImagePicker.launchCameraAsync({ quality: 0.8 });
+    console.log('📱 Camera result:', shot.canceled ? 'canceled' : 'photo taken');
+    
+    if (!shot.canceled) {
+      console.log('📸 Photo taken, setting URI and compressing...');
+      setImageUri(shot.assets[0].uri);
+      setShowAdCompleteMessage(false); // Hide the ad completion message
+      await compressSelectedImage(shot.assets[0].uri);
+    }
+  };
+
   const takePhoto = async () => {
     console.log('📸 takePhoto called with:');
     console.log('  - current user:', session?.email);
@@ -271,6 +308,8 @@ export default function Home() {
     const nextScanNumber = (subscriptionStatus?.scansUsed || 0) + 1;
     if (subscriptionStatus?.plan === 'free' && nextScanNumber > 3 && !hasAdFreePass) {
       console.log(`📺 Showing ad for free user (scan ${nextScanNumber}, ad required after 3 free scans)`);
+      console.log('📝 Setting pending action: camera');
+      setPendingAction('camera'); // Store the user's intent
       setShowAd(true);
       return;
     }
@@ -282,15 +321,7 @@ export default function Home() {
     }
     
     console.log('✅ Proceeding with photo capture (ad not required or still in free tier)');
-
-    const { status } = await ImagePicker.requestCameraPermissionsAsync();
-    if (status !== 'granted') return;
-    const shot = await ImagePicker.launchCameraAsync({ quality: 0.8 });
-    if (!shot.canceled) {
-      setImageUri(shot.assets[0].uri);
-      setShowAdCompleteMessage(false); // Hide the ad completion message
-      await compressSelectedImage(shot.assets[0].uri);
-    }
+    await executePhotoCapture();
   };
 
   const compressSelectedImage = async (uri: string) => {

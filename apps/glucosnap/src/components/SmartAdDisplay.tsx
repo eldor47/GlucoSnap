@@ -27,7 +27,9 @@ export const SmartAdDisplay: React.FC<SmartAdDisplayProps> = (props) => {
     return <MockAdDisplay {...props} />;
   } else {
     // In native builds, dynamically import real AdMob component
+    // Only import when not in Expo Go to avoid warnings
     try {
+      // Use dynamic import to prevent module loading in Expo Go
       const { RealAdDisplay } = require('./RealAdDisplay');
       return <RealAdDisplay {...props} />;
     } catch (error) {

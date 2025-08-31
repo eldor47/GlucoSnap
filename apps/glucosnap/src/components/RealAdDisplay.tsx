@@ -32,17 +32,31 @@ export const RealAdDisplay: React.FC<RealAdDisplayProps> = ({
   onAdSkip,
   onAdError,
 }) => {
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [adLoaded, setAdLoaded] = useState(false);
   const [adError, setAdError] = useState(false);
   const [showFallback, setShowFallback] = useState(false);
+  const [realAdShowing, setRealAdShowing] = useState(false);
+
+  // Reset ALL state when modal becomes invisible
+  useEffect(() => {
+    if (!isVisible) {
+      console.log('📺 Modal hidden, resetting ALL ad state');
+      setIsLoading(false);
+      setAdLoaded(false);
+      setAdError(false);
+      setShowFallback(false);
+      setRealAdShowing(false);
+    }
+  }, [isVisible]);
 
   useEffect(() => {
-    if (isVisible && !adLoaded) {
+    if (isVisible && !adLoaded && !adError && !realAdShowing) {
       console.log('📺 Loading interstitial ad...');
       setIsLoading(true);
       setAdError(false);
       setShowFallback(false);
+      setRealAdShowing(false);
       
       // Set up ad event listeners
       const unsubscribeLoaded = interstitial.addAdEventListener(AdEventType.LOADED, () => {
@@ -52,11 +66,36 @@ export const RealAdDisplay: React.FC<RealAdDisplayProps> = ({
         setAdError(false);
         
         // Show the ad immediately when loaded
-        interstitial.show().catch((error: any) => {
+        interstitial.show().then(() => {
+          console.log('📺 Ad show() called successfully - hiding our modal immediately');
+          // Hide our modal immediately when show() succeeds
+          setRealAdShowing(true);
+          setIsLoading(false);
+          setShowFallback(false);
+          
+          // Set a backup timer to call completion if CLOSED event doesn't fire
+          setTimeout(() => {
+            console.log('⏰ Backup timer: Assuming ad completed after 5 seconds');
+            setIsLoading(false);
+            setAdLoaded(false);
+            setAdError(false);
+            setShowFallback(false);
+            setRealAdShowing(false);
+            onAdComplete();
+          }, 5000);
+        }).catch((error: any) => {
           console.error('❌ Failed to show interstitial ad:', error);
           setAdError(true);
           setShowFallback(true);
+          setRealAdShowing(false);
         });
+      });
+
+      const unsubscribeOpened = interstitial.addAdEventListener(AdEventType.OPENED, () => {
+        console.log('📺 Real ad opened - hiding our modal');
+        setRealAdShowing(true);
+        setIsLoading(false);
+        setShowFallback(false);
       });
 
       const unsubscribeError = interstitial.addAdEventListener(AdEventType.ERROR, (error: any) => {
@@ -64,11 +103,18 @@ export const RealAdDisplay: React.FC<RealAdDisplayProps> = ({
         setIsLoading(false);
         setAdError(true);
         setShowFallback(true);
+        setRealAdShowing(false);
       });
 
       const unsubscribeClosed = interstitial.addAdEventListener(AdEventType.CLOSED, () => {
-        console.log('📺 Interstitial ad closed');
+        console.log('📺 Interstitial ad closed - resetting ALL state');
+        // Reset ALL state when ad is closed
+        setIsLoading(false);
         setAdLoaded(false);
+        setAdError(false);
+        setShowFallback(false);
+        setRealAdShowing(false);
+        // Call the completion callback
         onAdComplete();
       });
 
@@ -77,38 +123,60 @@ export const RealAdDisplay: React.FC<RealAdDisplayProps> = ({
 
       // Fallback timeout - show fallback after 10 seconds if ad doesn't load
       const fallbackTimeout = setTimeout(() => {
-        if (isLoading) {
+        if (isLoading && !realAdShowing) {
           console.log('⏰ Ad loading timeout, showing fallback');
           setIsLoading(false);
           setShowFallback(true);
+          setRealAdShowing(false);
         }
       }, 10000);
 
       return () => {
         unsubscribeLoaded();
+        unsubscribeOpened();
         unsubscribeError();
         unsubscribeClosed();
         clearTimeout(fallbackTimeout);
       };
     }
-  }, [isVisible, adLoaded, onAdComplete]);
+  }, [isVisible, adLoaded, adError, realAdShowing, onAdComplete]);
 
   const handleSkip = () => {
-    console.log('⏭️ User skipped ad');
+    console.log('⏭️ User skipped ad - resetting ALL state');
+    // Reset ALL state when skipping
+    setIsLoading(false);
+    setAdLoaded(false);
+    setAdError(false);
+    setShowFallback(false);
+    setRealAdShowing(false);
     onAdSkip();
   };
 
   const handleError = () => {
-    console.log('❌ Ad error handled');
+    console.log('❌ Ad error handled - resetting ALL state');
+    // Reset ALL state when handling error
+    setIsLoading(false);
+    setAdLoaded(false);
+    setAdError(false);
+    setShowFallback(false);
+    setRealAdShowing(false);
     onAdError();
   };
 
-  // Don't show modal if real ad is loaded and will be shown by AdMob
-  if (!isVisible || (adLoaded && !showFallback)) return null;
+  // CRITICAL: Don't render modal if not visible OR if real ad is showing
+  if (!isVisible || realAdShowing) {
+    return null;
+  }
+
+  // Don't render modal if ad is loaded but no fallback needed
+  if (adLoaded && !showFallback && !realAdShowing) {
+    return null;
+  }
 
   return (
     <Modal
-      visible={isVisible}
+      key={`ad-modal-${isVisible}-${adLoaded}-${adError}-${showFallback}`}
+      visible={true}
       transparent={true}
       animationType="fade"
       onRequestClose={handleSkip}

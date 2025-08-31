@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1514892537757211",
+    "project_id": "glucosnap",
+    "storage_bucket": "glucosnap.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "ca-app-pub-1514892537757211~8757180508",
+        "android_client_info": {
+          "package_name": "com.eldor.glucosnap"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "YOUR_API_KEY_HERE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
