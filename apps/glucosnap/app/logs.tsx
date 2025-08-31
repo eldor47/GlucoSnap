@@ -23,7 +23,7 @@ export default function Logs() {
   };
 
   return (
-    <ScrollView style={theme.screen} contentContainerStyle={{ paddingBottom: spacing(4) }}>
+    <ScrollView style={theme.screenContent} contentContainerStyle={{ paddingBottom: spacing(4) }}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing(1) }}>
         <Pressable onPress={() => router.back()} style={{ padding: 6, borderRadius: 8 }}>
           <MaterialCommunityIcons name="arrow-left" size={22} color={colors.text} />

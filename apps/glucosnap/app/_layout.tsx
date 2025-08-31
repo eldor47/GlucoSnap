@@ -1,12 +1,16 @@
 import { Stack } from 'expo-router';
 import { SessionProvider, useSession } from '../src/state/session';
+import { OnboardingProvider } from '../src/state/onboarding';
+import { SubscriptionProvider } from '../src/state/subscription';
 import { TokenBridge } from '../src/services/api';
-import { StatusBar } from 'expo-status-bar';
-import { View } from 'react-native';
-import { theme } from '../src/theme';
+import { View, StatusBar } from 'react-native';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+import { theme, colors } from '../src/theme';
+import React, { useMemo } from 'react';
 
 function Inner() {
   const { session, loading } = useSession();
+  
   if (loading) return null;
   return (<>
     {session?.token ? <TokenBridge token={session.token} /> : null}
@@ -15,12 +19,23 @@ function Inner() {
 }
 
 export default function Layout() {
-  return (
-    <SessionProvider>
-      <View style={theme.screen}>
-        <StatusBar style="light" />
+  // Memoize the SubscriptionProvider to prevent it from being re-created on every render
+  const memoizedSubscriptionProvider = useMemo(() => (
+    <SubscriptionProvider>
+      <SafeAreaView style={[theme.screen, { flex: 1 }]} edges={['top', 'left', 'right']}>
+        <StatusBar barStyle="light-content" backgroundColor={colors.background} translucent={false} />
         <Inner />
-      </View>
-    </SessionProvider>
+      </SafeAreaView>
+    </SubscriptionProvider>
+  ), []);
+
+  return (
+    <SafeAreaProvider>
+      <SessionProvider>
+        <OnboardingProvider>
+          {memoizedSubscriptionProvider}
+        </OnboardingProvider>
+      </SessionProvider>
+    </SafeAreaProvider>
   );
 }

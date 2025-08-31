@@ -2,15 +2,20 @@ import { StyleSheet } from 'react-native';
 
 export const colors = {
   background: '#1F1246', // deep purple
-  surface: '#251757',
+  surface: '#2A1B5C', // Slightly lighter for better input contrast
   card: '#2B1A61',
   primary: '#6C2BD9',
   primaryDark: '#4C1D95',
   accent: '#22D3EE',
-  text: '#F5F3FF',
-  subtext: '#C4B5FD',
-  border: '#3B2C7A',
-  danger: '#EF4444',
+  text: '#FFFFFF', // Pure white for maximum readability
+  subtext: '#D1C7F7', // Lighter purple for better contrast
+  border: '#4A3B8A', // Lighter border for better visibility
+  danger: '#FF5555', // Slightly brighter red
+  // Additional colors that were missing
+  white: '#FFFFFF',
+  error: '#FF5555', // Same as danger for consistency
+  success: '#10B981', // Green for success states
+  warning: '#F59E0B', // Orange for warning states
 };
 
 export const spacing = (n: number) => n * 8;
@@ -20,6 +25,13 @@ export const theme = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
     padding: spacing(2),
+  },
+  screenContent: {
+    flex: 1,
+    backgroundColor: colors.background,
+    paddingHorizontal: spacing(2),
+    paddingBottom: spacing(2),
+    paddingTop: spacing(1), // Reduced top padding since SafeAreaView handles safe area
   },
   title: {
     color: colors.text,

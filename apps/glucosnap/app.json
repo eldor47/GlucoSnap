@@ -3,10 +3,10 @@
     "name": "GlucoSnap",
     "slug": "glucosnap",
     "scheme": "glucosnap",
-    "owner": "barthinator",
+    "owner": "barthinator", 
     "version": "0.1.0",
+    "sdkVersion": "53.0.0",
     "orientation": "portrait",
-    
     "userInterfaceStyle": "light",
     "splash": {
       "backgroundColor": "#1F1246",
@@ -28,16 +28,37 @@
     },
     "android": {
       "package": "com.eldor.glucosnap",
+      "enableEdgeToEdge": true,
       "permissions": [
         "CAMERA",
+        "INTERNET",
         "READ_EXTERNAL_STORAGE",
         "WRITE_EXTERNAL_STORAGE"
+      ],
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "category": ["BROWSABLE", "DEFAULT"],
+          "data": [
+            { "scheme": "glucosnap" }
+          ]
+        }
       ]
     },
     "extra": {
-      "apiBaseUrl": "https://jq1g464hh6.execute-api.us-east-1.amazonaws.com/prod/", 
-      "googleClientId": "673538605636-8k93n960rop48g5v4kpvlq8jcgi295ab.apps.googleusercontent.com",
-      "androidClientId": "673538605636-an9o0c37m72uddohjbp0ocl168oaf5f0.apps.googleusercontent.com"
+      "apiBaseUrl": "https://08o8wsyz88.execute-api.us-east-1.amazonaws.com/prod/"
+    },
+    "plugins": [
+      [
+        "react-native-google-mobile-ads",
+        {
+          "android_app_id": "ca-app-pub-1514892537757211~8757180508",
+          "ios_app_id": "ca-app-pub-1514892537757211~8757180508"
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
     }
   }
 }
