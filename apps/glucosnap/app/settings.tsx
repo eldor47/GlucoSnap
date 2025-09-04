@@ -1,7 +1,8 @@
-import { View, Text, Image, Pressable, ScrollView, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, Image, Pressable, ScrollView, Alert, ActivityIndicator, StyleSheet, Switch } from 'react-native';
 import { useSession } from '../src/state/session';
 import { useOnboarding } from '../src/state/onboarding';
 import { useSubscription } from '../src/state/subscription';
+import { useDebug } from '../src/state/debug';
 import { router } from 'expo-router';
 import Constants from 'expo-constants';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -12,6 +13,7 @@ export default function Settings() {
   const { session, signOut } = useSession();
   const { resetOnboarding } = useOnboarding();
   const { subscriptionStatus, isLoading: subscriptionLoading } = useSubscription();
+  const { debugSettings, updateDebugSettings, isExpoGo } = useDebug();
   const appVersion = (Constants?.expoConfig as any)?.version || '1.0.0';
 
   const showTutorial = async () => {
@@ -22,7 +24,7 @@ export default function Settings() {
   return (
     <ScrollView 
       style={theme.screenContent} 
-      contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
+      contentContainerStyle={{ padding: 12, paddingBottom: 24 }}
       showsVerticalScrollIndicator={false}
     >
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
@@ -60,7 +62,13 @@ export default function Settings() {
           </View>
         ) : subscriptionStatus ? (
           <>
-            <Row label="Current Plan" value={subscriptionStatus.plan === 'premium' ? '⭐ Premium' : '🆓 Free'} />
+            <Row 
+              label="Current Plan" 
+              badge={{
+                text: subscriptionStatus.plan === 'premium' ? 'Premium' : 'Free',
+                type: subscriptionStatus.plan === 'premium' ? 'premium' : 'free'
+              }}
+            />
             <Row label="Scans Today" value={subscriptionStatus.scansUsed.toString()} />
             {subscriptionStatus.plan === 'free' && (
               <Row 
@@ -82,7 +90,10 @@ export default function Settings() {
         
         <View style={{ paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
-            <Text style={{ fontSize: 16, fontWeight: '600', color: colors.text }}>🆓 Free Plan</Text>
+            <Text style={{ fontSize: 16, fontWeight: '600', color: colors.text }}>Free Plan</Text>
+            <View style={[styles.planBadge, styles.freeBadge, { marginLeft: 8, marginBottom: 0 }]}>
+              <Text style={[styles.planText, styles.freeText]}>Free</Text>
+            </View>
           </View>
           <Text style={{ fontSize: 14, color: colors.subtext, lineHeight: 18 }}>
             • 3 free scans per day{'\n'}
@@ -93,7 +104,10 @@ export default function Settings() {
         
         <View style={{ paddingVertical: 12 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
-            <Text style={{ fontSize: 16, fontWeight: '600', color: colors.text }}>⭐ Premium Plan</Text>
+            <Text style={{ fontSize: 16, fontWeight: '600', color: colors.text }}>Premium Plan</Text>
+            <View style={[styles.planBadge, styles.premiumBadge, { marginLeft: 8, marginBottom: 0 }]}>
+              <Text style={[styles.planText, styles.premiumText]}>Premium</Text>
+            </View>
           </View>
           <Text style={{ fontSize: 14, color: colors.subtext, lineHeight: 18 }}>
             • Unlimited scans (no ads){'\n'}
@@ -122,6 +136,30 @@ export default function Settings() {
       <View style={[theme.card, { paddingHorizontal: 16, borderRadius: 12, marginBottom: 16 }]}>
         <Row label="App version" value={appVersion} />
       </View>
+
+      {/* Debug Settings - Only show in Expo Go */}
+      {isExpoGo && (
+        <View style={[theme.card, { paddingHorizontal: 16, borderRadius: 12, marginBottom: 16 }]}>
+          <Text style={[theme.text, { fontSize: 16, fontWeight: '700', marginBottom: 12, paddingHorizontal: 0, paddingTop: 16 }]}>
+            Debug Settings
+          </Text>
+          
+          <View style={{ paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: colors.text, fontSize: 16, fontWeight: '500' }}>Show Debug Info</Text>
+              <Text style={{ color: colors.subtext, fontSize: 14, marginTop: 2 }}>
+                Display debug information on the home screen
+              </Text>
+            </View>
+            <Switch
+              value={debugSettings.showDebugInfo}
+              onValueChange={(value) => updateDebugSettings({ showDebugInfo: value })}
+              trackColor={{ false: colors.border, true: colors.primary + '40' }}
+              thumbColor={debugSettings.showDebugInfo ? colors.primary : colors.subtext}
+            />
+          </View>
+        </View>
+      )}
 
       <View style={{ marginTop: 24, gap: spacing(1) }}>
         <Pressable
@@ -155,11 +193,58 @@ export default function Settings() {
   );
 }
 
-function Row({ label, value }: { label: string; value?: string }) {
+function Row({ label, value, badge }: { 
+  label: string; 
+  value?: string; 
+  badge?: { text: string; type: 'premium' | 'free' } 
+}) {
   return (
     <View style={{ paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
       <Text style={{ color: colors.subtext }}>{label}</Text>
-      <Text style={{ fontWeight: '600', color: colors.text }}>{value || '—'}</Text>
+      {badge ? (
+        <View style={[
+          styles.planBadge,
+          badge.type === 'premium' ? styles.premiumBadge : styles.freeBadge
+        ]}>
+          <Text style={[
+            styles.planText,
+            badge.type === 'premium' ? styles.premiumText : styles.freeText
+          ]}>
+            {badge.text}
+          </Text>
+        </View>
+      ) : (
+        <Text style={{ fontWeight: '600', color: colors.text }}>{value || '—'}</Text>
+      )}
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  planBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: 1,
+  },
+  freeBadge: {
+    backgroundColor: colors.surface,
+    borderColor: colors.accent,
+  },
+  premiumBadge: {
+    backgroundColor: colors.primary + '15',
+    borderColor: colors.primary,
+  },
+  planText: {
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+  freeText: {
+    color: colors.accent,
+  },
+  premiumText: {
+    color: colors.primary,
+  },
+});

@@ -149,39 +149,39 @@ async function authedFetch(path: string, token: string, init?: RequestInit, onTo
 
 export const api = {
   async getUploadUrl({ contentType }: { contentType: string }, onTokenExpired?: () => Promise<boolean>) {
-    const token = getToken();
+    const token = await getToken();
     return authedFetch('/uploads', token, { method: 'POST', body: JSON.stringify({ contentType }) }, onTokenExpired);
   },
   async analyze({ key }: { key: string }, onTokenExpired?: () => Promise<boolean>) {
-    const token = getToken();
+    const token = await getToken();
     return authedFetch('/analyze', token, { method: 'POST', body: JSON.stringify({ key }) }, onTokenExpired);
   },
   async getMealLogs(onTokenExpired?: () => Promise<boolean>) {
-    const token = getToken();
+    const token = await getToken();
     return authedFetch('/meals/logs', token, { method: 'GET' }, onTokenExpired);
   },
   async createMealLog(mealLog: { carbs: number; text?: string; imageUrl?: string }, onTokenExpired?: () => Promise<boolean>) {
-    const token = getToken();
+    const token = await getToken();
     return authedFetch('/meals/logs', token, { method: 'POST', body: JSON.stringify(mealLog) }, onTokenExpired);
   },
   async updateMealLog(logId: string, updates: { carbs?: number; text?: string }, onTokenExpired?: () => Promise<boolean>) {
-    const token = getToken();
+    const token = await getToken();
     return authedFetch(`/meals/logs/${logId}`, token, { method: 'PUT', body: JSON.stringify(updates) }, onTokenExpired);
   },
   async deleteMealLog(logId: string, onTokenExpired?: () => Promise<boolean>) {
-    const token = getToken();
+    const token = await getToken();
     return authedFetch(`/meals/logs/${logId}`, token, { method: 'DELETE' }, onTokenExpired);
   },
   async getUserProfile(onTokenExpired?: () => Promise<boolean>) {
-    const token = getToken();
+    const token = await getToken();
     return authedFetch('/user/profile', token, { method: 'GET' }, onTokenExpired);
   },
   async updateUserProfile(profile: { givenName?: string; familyName?: string }, onTokenExpired?: () => Promise<boolean>) {
-    const token = getToken();
+    const token = await getToken();
     return authedFetch(`/user/profile`, token, { method: 'PUT', body: JSON.stringify(profile) }, onTokenExpired);
   },
   async submitFeedback(feedback: { type: 'positive' | 'negative'; text?: string; imageUri: string; result: any }, onTokenExpired?: () => Promise<boolean>) {
-    const token = getToken();
+    const token = await getToken();
     return authedFetch('/feedback', token, { method: 'POST', body: JSON.stringify(feedback) }, onTokenExpired);
   },
   async uploadImage(uploadUrl: string, fileUri: string, contentType: string) {
@@ -194,24 +194,24 @@ export const api = {
   },
   // Subscription-related methods
   async getSubscriptionStatus(onTokenExpired?: () => Promise<boolean>) {
-    const token = getToken();
+    const token = await getToken();
     return authedFetch('/subscriptions/status', token, { method: 'GET' }, onTokenExpired);
   },
   async trackUsage(usage: { action: 'scan' | 'ad_watched'; adWatched: boolean }, onTokenExpired?: () => Promise<boolean>) {
-    const token = getToken();
+    const token = await getToken();
     return authedFetch('/subscriptions/usage', token, { method: 'POST', body: JSON.stringify(usage) }, onTokenExpired);
   },
   async getUsageHistory(onTokenExpired?: () => Promise<boolean>) {
-    const token = getToken();
+    const token = await getToken();
     return authedFetch('/subscriptions/usage', token, { method: 'GET' }, onTokenExpired);
   },
   async upgradeToPremium(subscription: { subscriptionId: string; plan: string }, onTokenExpired?: () => Promise<boolean>) {
-    const token = getToken();
+    const token = await getToken();
     return authedFetch('/subscriptions/upgrade', token, { method: 'POST', body: JSON.stringify(subscription) }, onTokenExpired);
   },
 };
 
-function getToken(): string {
+async function getToken(): Promise<string> {
   // This module expects to be used from components where token is set in provider.
   // In a simple setup, we stash token on globalThis for convenience.
   const t = (globalThis as any).__glucosnap_token as string | undefined;
@@ -231,16 +231,36 @@ function getToken(): string {
       tokenStart: t.substring(0, 20) + '...'
     });
     
-    if (now >= exp) {
-      console.log('🌐 getToken: Token is expired, attempting refresh...');
-      // Token is expired, try to refresh it
+    // If token is expired or expires in less than 60 seconds, try to refresh it
+    if (now >= exp || timeUntilExpiry < 60000) {
+      console.log('🌐 getToken: Token is expired or expiring soon, attempting refresh...');
+      
       if (globalTokenRefreshFunction) {
-        globalTokenRefreshFunction().catch(error => {
+        try {
+          const refreshSuccess = await globalTokenRefreshFunction();
+          if (refreshSuccess) {
+            // Get the new token after successful refresh
+            const newToken = (globalThis as any).__glucosnap_token as string | undefined;
+            if (newToken && newToken !== t) {
+              console.log('✅ getToken: Token refreshed successfully');
+              return newToken;
+            }
+          }
+          console.log('❌ getToken: Token refresh failed or no new token available');
+        } catch (error) {
           console.error('🌐 getToken: Failed to refresh expired token:', error);
-        });
+        }
+      }
+      
+      // If refresh failed and token is actually expired, throw error
+      if (now >= exp) {
+        throw new Error('Token expired and refresh failed - please sign in again');
       }
     }
   } catch (error) {
+    if (error.message?.includes('Token expired')) {
+      throw error; // Re-throw token expiration errors
+    }
     console.warn('🌐 getToken: Could not parse token payload:', error);
   }
   

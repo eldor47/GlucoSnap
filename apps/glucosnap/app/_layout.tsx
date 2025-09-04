@@ -2,6 +2,7 @@ import { Stack } from 'expo-router';
 import { SessionProvider, useSession } from '../src/state/session';
 import { OnboardingProvider } from '../src/state/onboarding';
 import { SubscriptionProvider } from '../src/state/subscription';
+import { DebugProvider } from '../src/state/debug';
 import { TokenBridge } from '../src/services/api';
 import { View, StatusBar } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
@@ -33,7 +34,9 @@ export default function Layout() {
     <SafeAreaProvider>
       <SessionProvider>
         <OnboardingProvider>
-          {memoizedSubscriptionProvider}
+          <DebugProvider>
+            {memoizedSubscriptionProvider}
+          </DebugProvider>
         </OnboardingProvider>
       </SessionProvider>
     </SafeAreaProvider>

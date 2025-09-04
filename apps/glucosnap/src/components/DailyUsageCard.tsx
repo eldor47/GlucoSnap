@@ -26,7 +26,7 @@ export const DailyUsageCard: React.FC = () => {
         <View style={styles.rightSection}>
           <View style={[styles.planBadge, isPremium ? styles.premiumBadge : styles.freeBadge]}>
             <Text style={[styles.planText, isPremium ? styles.premiumText : styles.freeText]}>
-              {isPremium ? '⭐ Premium' : '🆓 Free'}
+              {isPremium ? 'Premium' : 'Free'}
             </Text>
           </View>
           
@@ -73,23 +73,28 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   planBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
     marginBottom: 4,
+    borderWidth: 1,
   },
   freeBadge: {
-    backgroundColor: colors.secondary + '20',
+    backgroundColor: colors.surface,
+    borderColor: colors.accent,
   },
   premiumBadge: {
-    backgroundColor: colors.primary + '20',
+    backgroundColor: colors.primary + '15',
+    borderColor: colors.primary,
   },
   planText: {
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '800',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
   },
   freeText: {
-    color: colors.secondary,
+    color: colors.accent,
   },
   premiumText: {
     color: colors.primary,

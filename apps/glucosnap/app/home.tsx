@@ -1,48 +1,3 @@
-/**
- * 🏠 Home Screen - Main Analysis Interface
- * 
- * ✅ COMPLETED FEATURES:
- * - Image compression (50-80% cost savings)
- * - Username display in settings
- * - Password validation (sign-up only)
- * - Onboarding walkthrough system
- * - iOS safe area handling
- * - Real-time form validation
- * 
- * 🔧 CURRENT ISSUE - PROGRESS BAR FREEZING:
- * The progress bar gets stuck on step 2 during analysis.
- * 
- * DEBUGGING STATUS:
- * - Added comprehensive console logging
- * - Fixed step numbering (was using indices 2,3,4,5 instead of 1,2,3,4)
- * - Fixed completion logic (was checking >= steps.length instead of >= steps.length-1)
- * - Added safety timeout (30s max) to prevent infinite progress
- * - Added force completion after 1.5s delay
- * 
- * PROGRESS STEPS (5 total, indices 0-4):
- * 0: "Optimizing Image" (compression)
- * 1: "Uploading to Cloud" (upload)
- * 2: "Analyzing Food" (AI analysis) ← GETS STUCK HERE
- * 3: "Counting Carbs" (nutrition)
- * 4: "Finalizing Results" (completion)
- * 
- * NEXT STEPS TO DEBUG:
- * 1. Test with console logs to see exact step progression
- * 2. Check if setCurrentProgressStep(2) is being called
- * 3. Verify ProgressBar component receives correct currentStep
- * 4. Check if completion logic triggers at step 4
- * 5. Ensure state updates are properly propagated
- * 
- * SAFETY MECHANISMS IN PLACE:
- * - 30-second safety timeout
- * - Force completion after analysis
- * - Comprehensive error logging
- * - Graceful fallback handling
- * 
- * @author Assistant
- * @lastUpdated 2025-01-XX
- * @status Needs debugging for progress bar freezing
- */
 
 import { View, Text, Image, Pressable, TouchableOpacity, ActivityIndicator, Alert, StyleSheet, ScrollView, TextInput } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -54,6 +9,7 @@ import Constants from 'expo-constants';
 import { useSession } from '../src/state/session';
 import { useOnboarding } from '../src/state/onboarding';
 import { useSubscription } from '../src/state/subscription';
+import { useDebug } from '../src/state/debug';
 import { api } from '../src/services/api';
 import { addLog } from '../src/storage/logs';
 import Onboarding from '../src/components/Onboarding';
@@ -66,6 +22,7 @@ export default function Home() {
   const { session, refreshToken } = useSession();
   const { hasCompletedOnboarding, markOnboardingComplete, loading: onboardingLoading } = useOnboarding();
   const { subscriptionStatus, trackUsage, refreshSubscriptionStatus, resetScanUsage } = useSubscription();
+  const { debugSettings, isExpoGo } = useDebug();
   
   // Set up global router for API service redirects
   useEffect(() => {
@@ -76,7 +33,7 @@ export default function Home() {
   }, []);
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [compressedImageUri, setCompressedImageUri] = useState<string | null>(null);
-  const [compressionInfo, setCompressionInfo] = useState<{ originalSize: number; compressedSize: number } | null>(null);
+  // Compression info removed - no longer displayed in UI
   const [result, setResult] = useState<any>(null);
   const [busy, setBusy] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
@@ -85,6 +42,7 @@ export default function Home() {
   const [showAdCompleteMessage, setShowAdCompleteMessage] = useState(false); // Shows ad completion message
   const [hasAdFreePass, setHasAdFreePass] = useState(false); // Free pass after watching ad
   const [pendingAction, setPendingAction] = useState<'camera' | 'library' | null>(null); // Store user's intended action
+  const [buttonsEnabled, setButtonsEnabled] = useState(true); // Controls if camera/library buttons are enabled
 
 
 
@@ -98,7 +56,7 @@ export default function Home() {
     }
   }, [hasCompletedOnboarding, onboardingLoading]);
 
-  // Reset ads watched count when subscription status changes
+  // Reset ads watched count when subscription status changes and update button state
   useEffect(() => {
     console.log('🔄 Subscription status changed:', subscriptionStatus);
     if (subscriptionStatus) {
@@ -109,9 +67,16 @@ export default function Home() {
       // Reset ads when subscription changes (new user or new day)
       setAdsWatchedThisSession(0);
       setShowAdCompleteMessage(false);
+      
+      // Update button state based on subscription and usage
+      const nextScanNumber = (subscriptionStatus.scansUsed || 0) + 1;
+      const needsAd = subscriptionStatus.plan === 'free' && nextScanNumber > 3 && !hasAdFreePass;
+      setButtonsEnabled(!needsAd);
+      
       console.log('✅ Reset ads watched count for new subscription status');
+      console.log(`📱 Buttons enabled: ${!needsAd} (needs ad: ${needsAd})`);
     }
-  }, [subscriptionStatus]);
+  }, [subscriptionStatus, hasAdFreePass]);
 
   // Reset ads watched count when session changes (new user)
   useEffect(() => {
@@ -126,6 +91,7 @@ export default function Home() {
       setShowAd(false);
       setHasAdFreePass(false);
       setPendingAction(null);
+      setButtonsEnabled(true); // Enable buttons for new user initially
       
       console.log('✅ Reset ads watched count for new user:', session.email);
     } else {
@@ -135,6 +101,7 @@ export default function Home() {
       setShowAd(false);
       setHasAdFreePass(false);
       setPendingAction(null);
+      setButtonsEnabled(true);
     }
   }, [session?.email]); // Removed refreshSubscriptionStatus dependency
 
@@ -149,13 +116,17 @@ export default function Home() {
   };
 
   const handleAdComplete = async () => {
-    console.log('🎉🎉🎉 handleAdComplete called - Ad completed, proceeding with image selection');
+    console.log('🎉🎉🎉 handleAdComplete called - Ad completed, enabling buttons');
     setShowAd(false);
     setAdsWatchedThisSession(prev => prev + 1); // Increment ads watched count
     setShowAdCompleteMessage(true); // Show completion message
     setHasAdFreePass(true); // Grant free pass for immediate scan
+    setButtonsEnabled(true); // Enable camera and library buttons
+    setPendingAction(null); // Clear any pending action since we're not auto-executing
+    
     console.log('🔒 Ads watched this session:', adsWatchedThisSession + 1);
     console.log('🎫🎫🎫 Granted ad free pass for next scan - hasAdFreePass now TRUE');
+    console.log('📱 Buttons now enabled after ad completion');
     
     // Track ad completion
     await trackUsage('ad_watched');
@@ -165,26 +136,30 @@ export default function Home() {
       setShowAdCompleteMessage(false);
     }, 5000);
     
-    // Automatically execute the user's intended action
-    if (pendingAction) {
-      console.log(`🚀 Automatically executing pending action: ${pendingAction}`);
-      setPendingAction(null); // Clear the pending action
-      
-      if (pendingAction === 'camera') {
-        await executePhotoCapture();
-      } else if (pendingAction === 'library') {
-        await executeImageSelection();
-      }
-    } else {
-      console.log('✅ Ad complete - no pending action to execute');
-    }
-    
-    console.log('🐛 Debug state after ad complete:', { hasAdFreePass: true, showAd: false, showAdCompleteMessage: true, pendingAction });
+    console.log('🐛 Debug state after ad complete:', { hasAdFreePass: true, showAd: false, showAdCompleteMessage: true, buttonsEnabled: true });
   };
 
-  const handleAdSkip = () => {
+  const handleAdSkip = async () => {
     setShowAd(false);
-    setPendingAction(null); // Clear pending action when ad is skipped
+    
+    // Execute the user's intended action even if ad was skipped
+    const actionToExecute = pendingAction;
+    setPendingAction(null); // Clear pending action
+    
+    if (actionToExecute) {
+      console.log(`🚀 Executing skipped action: ${actionToExecute}`);
+      
+      // Use setTimeout to ensure this runs in the next event loop with proper user context
+      setTimeout(async () => {
+        if (actionToExecute === 'camera') {
+          await executePhotoCapture();
+        } else if (actionToExecute === 'library') {
+          await executeImageSelection();
+        }
+      }, 100);
+    }
+    
+    // Show upgrade prompt after executing the action
     Alert.alert(
       'Ad Skipped',
       'You can upgrade to Premium to avoid ads.',
@@ -195,9 +170,27 @@ export default function Home() {
     );
   };
 
-  const handleAdError = () => {
+  const handleAdError = async () => {
     setShowAd(false);
-    setPendingAction(null); // Clear pending action when ad errors
+    
+    // Execute the user's intended action even if ad failed
+    const actionToExecute = pendingAction;
+    setPendingAction(null); // Clear pending action
+    
+    if (actionToExecute) {
+      console.log(`🚀 Executing action after ad error: ${actionToExecute}`);
+      
+      // Use setTimeout to ensure this runs in the next event loop with proper user context
+      setTimeout(async () => {
+        if (actionToExecute === 'camera') {
+          await executePhotoCapture();
+        } else if (actionToExecute === 'library') {
+          await executeImageSelection();
+        }
+      }, 100);
+    }
+    
+    // Show error prompt after executing the action
     Alert.alert(
       'Ad Error',
       'There was an issue loading the ad. Please try again or upgrade to Premium.',
@@ -213,24 +206,33 @@ export default function Home() {
 
   // Execute the actual image selection (without ad logic)
   const executeImageSelection = async () => {
-    console.log('📚 Executing image selection...');
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    console.log('🔑 Media library permission status:', status);
-    
-    if (status !== 'granted') {
-      console.log('❌ Media library permission denied');
-      return;
-    }
-    
-    console.log('📚 Launching image library...');
-    const pick = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], quality: 0.8 });
-    console.log('📱 Image picker result:', pick.canceled ? 'canceled' : 'image selected');
-    
-    if (!pick.canceled) {
-      console.log('🖼️ Image selected, setting URI and compressing...');
-      setImageUri(pick.assets[0].uri);
-      setShowAdCompleteMessage(false); // Hide the ad completion message
-      await compressSelectedImage(pick.assets[0].uri);
+    try {
+      console.log('📚 Executing image selection...');
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      console.log('🔑 Media library permission status:', status);
+      
+      if (status !== 'granted') {
+        console.log('❌ Media library permission denied');
+        Alert.alert('Permission Required', 'Please allow access to your photo library to select images.');
+        return;
+      }
+      
+      console.log('📚 Launching image library...');
+      const pick = await ImagePicker.launchImageLibraryAsync();
+      
+      console.log('📱 Image picker result:', pick.canceled ? 'canceled' : 'image selected');
+      
+      if (!pick.canceled && pick.assets && pick.assets.length > 0) {
+        console.log('🖼️ Image selected, setting URI and compressing...');
+        setImageUri(pick.assets[0].uri);
+        setShowAdCompleteMessage(false); // Hide the ad completion message
+        await compressSelectedImage(pick.assets[0].uri);
+      } else {
+        console.log('📚 Image selection was canceled or no assets returned');
+      }
+    } catch (error) {
+      console.error('❌ Error in executeImageSelection:', error);
+      Alert.alert('Error', 'Failed to open image library. Please try again.');
     }
   };
 
@@ -243,25 +245,11 @@ export default function Home() {
     console.log('  - plan:', subscriptionStatus?.plan);
     console.log('  - scansUsed:', subscriptionStatus?.scansUsed);
     console.log('  - hasAdFreePass:', hasAdFreePass);
-    console.log('  - showAd:', showAd);
-    
-    // No daily limits anymore - free users get unlimited scans with ads after 3 free
+    console.log('  - buttonsEnabled:', buttonsEnabled);
 
-    // Show ad for free users after their 3 free daily scans (unless they have a free pass)
-    const nextScanNumber = (subscriptionStatus?.scansUsed || 0) + 1;
-    console.log('🔍 Ad check:', { 
-      plan: subscriptionStatus?.plan, 
-      nextScanNumber, 
-      needsAd: nextScanNumber > 3, 
-      hasAdFreePass,
-      finalDecision: subscriptionStatus?.plan === 'free' && nextScanNumber > 3 && !hasAdFreePass ? 'SHOW_AD' : 'PROCEED'
-    });
-    
-    if (subscriptionStatus?.plan === 'free' && nextScanNumber > 3 && !hasAdFreePass) {
-      console.log(`📺📺📺 Showing ad for free user (scan ${nextScanNumber}, ad required after 3 free scans)`);
-      console.log('📝 Setting pending action: library');
-      setPendingAction('library'); // Store the user's intent
-      setShowAd(true);
+    // If buttons are disabled, do nothing (user should watch ad first)
+    if (!buttonsEnabled) {
+      console.log('❌ Buttons disabled - user needs to watch ad first');
       return;
     }
     
@@ -269,30 +257,43 @@ export default function Home() {
     if (hasAdFreePass) {
       console.log('🎫 Using ad free pass for this scan');
       setHasAdFreePass(false);
+      
+      // Check if we need to disable buttons for next scan
+      const nextScanNumber = (subscriptionStatus?.scansUsed || 0) + 2; // +2 because this scan will increment it
+      const needsAdNext = subscriptionStatus?.plan === 'free' && nextScanNumber > 3;
+      setButtonsEnabled(!needsAdNext);
     }
     
-    console.log('✅ Proceeding with image selection (ad not required or still in free tier)');
+    console.log('✅ Proceeding with image selection');
     await executeImageSelection();
   };
 
   // Execute the actual photo capture (without ad logic)
   const executePhotoCapture = async () => {
-    console.log('📸 Executing photo capture...');
-    const { status } = await ImagePicker.requestCameraPermissionsAsync();
-    if (status !== 'granted') {
-      console.log('❌ Camera permission denied');
-      return;
-    }
-    
-    console.log('📸 Launching camera...');
-    const shot = await ImagePicker.launchCameraAsync({ quality: 0.8 });
-    console.log('📱 Camera result:', shot.canceled ? 'canceled' : 'photo taken');
-    
-    if (!shot.canceled) {
-      console.log('📸 Photo taken, setting URI and compressing...');
-      setImageUri(shot.assets[0].uri);
-      setShowAdCompleteMessage(false); // Hide the ad completion message
-      await compressSelectedImage(shot.assets[0].uri);
+    try {
+      console.log('📸 Executing photo capture...');
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') {
+        console.log('❌ Camera permission denied');
+        Alert.alert('Permission Required', 'Please allow access to your camera to take photos.');
+        return;
+      }
+      
+      console.log('📸 Launching camera...');
+      const shot = await ImagePicker.launchCameraAsync();
+      console.log('📱 Camera result:', shot.canceled ? 'canceled' : 'photo taken');
+      
+      if (!shot.canceled && shot.assets && shot.assets.length > 0) {
+        console.log('📸 Photo taken, setting URI and compressing...');
+        setImageUri(shot.assets[0].uri);
+        setShowAdCompleteMessage(false); // Hide the ad completion message
+        await compressSelectedImage(shot.assets[0].uri);
+      } else {
+        console.log('📸 Photo capture was canceled or no assets returned');
+      }
+    } catch (error) {
+      console.error('❌ Error in executePhotoCapture:', error);
+      Alert.alert('Error', 'Failed to open camera. Please try again.');
     }
   };
 
@@ -301,16 +302,11 @@ export default function Home() {
     console.log('  - current user:', session?.email);
     console.log('  - adsWatchedThisSession:', adsWatchedThisSession);
     console.log('  - scansUsed:', subscriptionStatus?.scansUsed);
+    console.log('  - buttonsEnabled:', buttonsEnabled);
     
-    // No daily limits anymore - free users get unlimited scans with ads after 3 free
-
-    // Show ad for free users after their 3 free daily scans (unless they have a free pass)
-    const nextScanNumber = (subscriptionStatus?.scansUsed || 0) + 1;
-    if (subscriptionStatus?.plan === 'free' && nextScanNumber > 3 && !hasAdFreePass) {
-      console.log(`📺 Showing ad for free user (scan ${nextScanNumber}, ad required after 3 free scans)`);
-      console.log('📝 Setting pending action: camera');
-      setPendingAction('camera'); // Store the user's intent
-      setShowAd(true);
+    // If buttons are disabled, do nothing (user should watch ad first)
+    if (!buttonsEnabled) {
+      console.log('❌ Buttons disabled - user needs to watch ad first');
       return;
     }
     
@@ -318,15 +314,32 @@ export default function Home() {
     if (hasAdFreePass) {
       console.log('🎫 Using ad free pass for this scan');
       setHasAdFreePass(false);
+      
+      // Check if we need to disable buttons for next scan
+      const nextScanNumber = (subscriptionStatus?.scansUsed || 0) + 2; // +2 because this scan will increment it
+      const needsAdNext = subscriptionStatus?.plan === 'free' && nextScanNumber > 3;
+      setButtonsEnabled(!needsAdNext);
     }
     
-    console.log('✅ Proceeding with photo capture (ad not required or still in free tier)');
+    console.log('✅ Proceeding with photo capture');
     await executePhotoCapture();
+  };
+
+  const watchAd = async () => {
+    console.log('📺 Watch Ad button pressed');
+    const nextScanNumber = (subscriptionStatus?.scansUsed || 0) + 1;
+    
+    if (subscriptionStatus?.plan === 'free' && nextScanNumber > 3 && !hasAdFreePass) {
+      console.log(`📺 Showing ad for free user (scan ${nextScanNumber}, ad required after 3 free scans)`);
+      setShowAd(true);
+    } else {
+      console.log('❌ Ad not required - this should not happen');
+    }
   };
 
   const compressSelectedImage = async (uri: string) => {
     try {
-      console.log('🖼️ Starting image compression...');
+      console.log('🖼️ Starting image compression and analysis...');
       setBusy(true);
       
       // Clear previous results
@@ -344,27 +357,24 @@ export default function Home() {
       const compressed = await compressImage(uri, { maxWidth: 1024, maxHeight: 1024, quality: 0.8 });
       
       setCompressedImageUri(compressed.uri);
-      setCompressionInfo({ originalSize, compressedSize: compressed.size });
       
       // Show compression savings
       const savings = estimateCostSavings(originalSize, compressed.size);
       console.log(`✅ Image compressed: ${savings.originalMB}MB → ${savings.compressedMB}MB (${savings.savingsPercent}% savings)`);
+      
+      // Automatically start analysis after compression
+      await analyzeCompressedImage(compressed.uri);
+      
     } catch (error) {
       console.error('❌ Compression failed:', error);
       // Fallback to original image
       setCompressedImageUri(uri);
-      setCompressionInfo(null);
-    } finally {
       setBusy(false);
     }
   };
 
-  const analyze = async () => {
-    if (!compressedImageUri) return;
-    
+  const analyzeCompressedImage = async (imageUri: string) => {
     try {
-      setBusy(true);
-      
       // Track scan usage
       const canContinue = await trackUsage('scan');
       if (!canContinue) {
@@ -376,15 +386,16 @@ export default function Home() {
             { text: 'OK' }
           ]
         );
+        setBusy(false);
         return;
       }
       
-      console.log('🚀 Starting analysis...');
+      console.log('🚀 Starting automatic analysis...');
       
-      // Simple, direct API calls - no progress bar, no complexity
-      const contentType = guessContentType(compressedImageUri);
+      // API calls for analysis
+      const contentType = guessContentType(imageUri);
       const { key, uploadUrl } = await api.getUploadUrl({ contentType }, handleTokenExpired);
-      await api.uploadImage(uploadUrl, compressedImageUri, contentType);
+      await api.uploadImage(uploadUrl, imageUri, contentType);
       const res = await api.analyze({ key }, handleTokenExpired);
       
       console.log('🎉 Analysis complete!');
@@ -394,7 +405,7 @@ export default function Home() {
       try {
         const parsed = parseAnalysisText(String(res.text ?? ''));
         if (!parsed.nonFood) {
-          await addLog({ imageUri: compressedImageUri, carbs: res.carbs ?? parsed.total ?? null, text: String(res.text ?? '') });
+          await addLog({ imageUri: imageUri, carbs: res.carbs ?? parsed.total ?? null, text: String(res.text ?? '') });
         }
       } catch {}
       
@@ -406,6 +417,7 @@ export default function Home() {
         Alert.alert('Session Expired', 'Your session has expired. Please sign in again.', [
           { text: 'OK', onPress: () => router.push('/login') }
         ]);
+        setBusy(false);
         return;
       }
       
@@ -455,11 +467,11 @@ export default function Home() {
         {/* Daily Usage */}
         <DailyUsageCard />
 
-        {/* Debug Info (Development Only) */}
-        {__DEV__ && (
+        {/* Debug Info (Only when enabled in settings and running in Expo Go) */}
+        {isExpoGo && debugSettings.showDebugInfo && (
           <View style={[theme.card, { padding: 8, backgroundColor: colors.border + '20' }]}>
             <Text style={[theme.muted, { fontSize: 12 }]}>
-              🐛 Debug: User: {session?.email || 'none'} | Scans Used: {subscriptionStatus?.scansUsed || 0} | Ads: {adsWatchedThisSession} | Free Pass: {hasAdFreePass ? '✅' : '❌'}
+              🐛 Debug: User: {session?.email || 'none'} | Scans Used: {subscriptionStatus?.scansUsed || 0} | Ads: {adsWatchedThisSession} | Free Pass: {hasAdFreePass ? '✅' : '❌'} | Buttons: {buttonsEnabled ? '✅' : '❌'}
             </Text>
             <Text style={[theme.muted, { fontSize: 12 }]}>
               Ad strategy: {(subscriptionStatus?.scansUsed || 0) < 3 ? `${3 - (subscriptionStatus?.scansUsed || 0)} free scans left` : 'Ad before each scan'} | Environment: {Constants.appOwnership === 'expo' ? 'Expo Go (Mock)' : 'Native (Real)'}
@@ -471,6 +483,7 @@ export default function Home() {
                 setAdsWatchedThisSession(0);
                 setHasAdFreePass(false);
                 setShowAdCompleteMessage(false);
+                setButtonsEnabled(true);
                 console.log('✅ Manual ad counter reset completed');
               }}
             >
@@ -486,6 +499,7 @@ export default function Home() {
                 setAdsWatchedThisSession(0);
                 setHasAdFreePass(false);
                 setShowAdCompleteMessage(false);
+                setButtonsEnabled(true);
                 console.log('✅ Scan usage reset completed');
               }}
             >
@@ -535,28 +549,75 @@ export default function Home() {
           </View>
         )}
 
-        <View style={{ flexDirection: 'row', gap: 12 }}>
-          <Pressable onPress={takePhoto} style={[styles.toolButton] }>
-            <MaterialCommunityIcons name="camera-outline" size={20} color={colors.text} />
-            <Text style={[theme.buttonTextPrimary, { marginLeft: 8 }]}>Take photo</Text>
+        {/* Watch Ad Button - only show when buttons are disabled */}
+        {!buttonsEnabled && (
+          <Pressable onPress={watchAd} style={[styles.watchAdButton]}>
+            <MaterialCommunityIcons name="play-circle-outline" size={20} color={colors.white} />
+            <Text style={[styles.watchAdButtonText, { marginLeft: 8 }]}>Watch Ad to Continue</Text>
           </Pressable>
-          <Pressable onPress={chooseImage} style={[styles.toolButton] }>
-            <MaterialCommunityIcons name="image-outline" size={20} color={colors.text} />
-            <Text style={[theme.buttonTextPrimary, { marginLeft: 8 }]}>Pick from library</Text>
+        )}
+
+        <View style={{ flexDirection: 'row', gap: 12 }}>
+          <Pressable 
+            onPress={takePhoto} 
+            disabled={!buttonsEnabled}
+            style={[
+              styles.toolButton,
+              !buttonsEnabled && styles.toolButtonDisabled
+            ]}
+          >
+            <MaterialCommunityIcons 
+              name="camera-outline" 
+              size={20} 
+              color={buttonsEnabled ? colors.text : colors.subtext} 
+            />
+            <Text style={[
+              theme.buttonTextPrimary, 
+              { marginLeft: 8 },
+              !buttonsEnabled && { color: colors.subtext }
+            ]}>
+              Take photo
+            </Text>
+          </Pressable>
+          <Pressable 
+            onPress={chooseImage} 
+            disabled={!buttonsEnabled}
+            style={[
+              styles.toolButton,
+              !buttonsEnabled && styles.toolButtonDisabled
+            ]}
+          >
+            <MaterialCommunityIcons 
+              name="image-outline" 
+              size={20} 
+              color={buttonsEnabled ? colors.text : colors.subtext} 
+            />
+            <Text style={[
+              theme.buttonTextPrimary, 
+              { marginLeft: 8 },
+              !buttonsEnabled && { color: colors.subtext }
+            ]}>
+              Pick from library
+            </Text>
           </Pressable>
         </View>
 
 
 
         {imageUri && (
-          <>
-            <Image source={{ uri: imageUri }} style={{ width: '100%', aspectRatio: 1, borderRadius: 16, borderWidth: 1, borderColor: colors.border }} />
-          </>
+          <Image source={{ uri: imageUri }} style={{ width: '100%', aspectRatio: 1, borderRadius: 16, borderWidth: 1, borderColor: colors.border }} />
         )}
 
-        <Pressable disabled={!compressedImageUri || busy} onPress={analyze} style={[theme.buttonPrimary, { opacity: !compressedImageUri || busy ? 0.5 : 1, backgroundColor: colors.primary }] }>
-          {busy ? <ActivityIndicator color={colors.text} /> : <Text style={theme.buttonTextPrimary}>Analyze Carbs</Text>}
-        </Pressable>
+        {/* Analysis Status */}
+        {busy && imageUri && (
+          <View style={[theme.card, { padding: 16, alignItems: 'center', backgroundColor: colors.primary + '10', borderColor: colors.primary + '30' }]}>
+            <ActivityIndicator size="small" color={colors.primary} style={{ marginBottom: 8 }} />
+            <Text style={[theme.text, { color: colors.primary, fontWeight: '600' }]}>Analyzing your image...</Text>
+            <Text style={[theme.muted, { fontSize: 12, textAlign: 'center', marginTop: 4 }]}>
+              This will only take a few seconds
+            </Text>
+          </View>
+        )}
 
         {result && <ResultView result={result} imageUri={imageUri} />}
       </ScrollView>
@@ -587,7 +648,9 @@ function guessContentType(uri: string) {
 }
 
 function ResultView({ result, imageUri }: { result: any; imageUri: string | null }) {
-  const parsed = parseAnalysisText(String(result.text ?? ''));
+  const { debugSettings, isExpoGo } = useDebug();
+  const parsed = parseAnalysisText(String(result.text ?? ''), isExpoGo && debugSettings.showDebugInfo);
+  
   return (
     <View style={{ marginTop: 12, gap: 12 }}>
       {parsed.nonFood ? (
@@ -638,26 +701,52 @@ function ResultView({ result, imageUri }: { result: any; imageUri: string | null
   );
 }
 
-function parseAnalysisText(text: string): { nonFood: boolean; reason?: string; total: number | null; items: Array<{ name: string; carbs_g?: number; notes?: string }>; raw: string } {
+function parseAnalysisText(text: string, debugEnabled: boolean = false): { nonFood: boolean; reason?: string; total: number | null; items: Array<{ name: string; carbs_g?: number; notes?: string }>; raw: string } {
   // Try to extract a JSON object from the text
   try {
     const start = text.indexOf('{');
     const end = text.lastIndexOf('}');
     if (start >= 0 && end > start) {
-      const json = JSON.parse(text.slice(start, end + 1));
+      const jsonString = text.slice(start, end + 1);
+      if (debugEnabled) {
+        console.log('🔍 Parsing JSON:', jsonString);
+      }
+      const json = JSON.parse(jsonString);
+      if (debugEnabled) {
+        console.log('🔍 Parsed JSON:', json);
+      }
+      
       if (json && json.non_food === true) {
         return { nonFood: true, reason: typeof json.reason === 'string' ? json.reason : undefined, total: null, items: [], raw: text };
       }
       const total = typeof json.total_carbs_g === 'number' ? json.total_carbs_g : null;
       const itemsIn = Array.isArray(json.items) ? json.items : [];
-      const items = itemsIn.map((it: any) => ({
-        name: String(it?.name ?? 'Item'),
-        carbs_g: typeof it?.carbs_g === 'number' ? it.carbs_g : undefined,
-        notes: typeof it?.notes === 'string' ? it.notes : undefined,
-      }));
+      if (debugEnabled) {
+        console.log('🔍 Raw items from JSON:', itemsIn);
+      }
+      
+      const items = itemsIn.map((it: any) => {
+        const item = {
+          name: String(it?.name ?? 'Item'),
+          carbs_g: typeof it?.carbs_g === 'number' ? it.carbs_g : undefined,
+          notes: typeof it?.notes === 'string' ? it.notes : undefined,
+        };
+        if (debugEnabled) {
+          console.log('🔍 Mapped item:', item);
+        }
+        return item;
+      });
+      
+      if (debugEnabled) {
+        console.log('🔍 Final parsed items:', items);
+      }
       return { nonFood: false, total, items, raw: text };
     }
-  } catch {}
+  } catch (error) {
+    if (debugEnabled) {
+      console.log('🔍 JSON parsing error:', error);
+    }
+  }
   // Fallback: attempt to find a grams number
   let total: number | null = null;
   const m = text.match(/(\d+\.?\d*)\s*g(?![a-zA-Z])/);
@@ -832,6 +921,29 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
     borderColor: colors.border,
+    flex: 1,
+  },
+  toolButtonDisabled: {
+    backgroundColor: colors.surface + '50',
+    borderColor: colors.border + '50',
+    opacity: 0.6,
+  },
+  watchAdButton: {
+    backgroundColor: colors.primary,
+    borderRadius: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: colors.primary,
+  },
+  watchAdButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.white,
   },
   feedbackButton: {
     flexDirection: 'row',

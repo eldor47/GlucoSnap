@@ -66,7 +66,7 @@ export default function Logs() {
             </View>
             <View style={[theme.card, { padding: spacing(1.5), borderRadius: 14, gap: spacing(1) }]}>
               {grouped[day].items.map((it) => {
-                const parsed = parseAnalysisText(it.text || '');
+                const parsed = parseAnalysisText(it.text || '', false);
                 return (
                   <View key={it.id} style={{ borderBottomWidth: 1, borderBottomColor: colors.border, paddingBottom: spacing(1), marginBottom: spacing(1) }}>
                     <View style={{ flexDirection: 'row', gap: spacing(1), alignItems: 'center' }}>
@@ -116,7 +116,7 @@ export default function Logs() {
   );
 }
 
-function parseAnalysisText(text: string): { nonFood: boolean; reason?: string; total: number | null; items: Array<{ name: string; carbs_g?: number; notes?: string }>; raw: string } {
+function parseAnalysisText(text: string, debugEnabled: boolean = false): { nonFood: boolean; reason?: string; total: number | null; items: Array<{ name: string; carbs_g?: number; notes?: string }>; raw: string } {
   try {
     const start = text.indexOf('{');
     const end = text.lastIndexOf('}');

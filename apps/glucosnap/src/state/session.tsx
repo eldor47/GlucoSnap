@@ -66,21 +66,69 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
             } catch {}
           }
           
-          // Fallback: decode basic info from token
-          if (!sessionData.email) {
-            try {
-              const payload = JSON.parse(atob(stored.split('.')[1]));
+          // Check if token is expired before setting up session
+          let isTokenExpired = false;
+          try {
+            const payload = JSON.parse(atob(stored.split('.')[1]));
+            const exp = payload.exp * 1000;
+            const now = Date.now();
+            isTokenExpired = now >= exp;
+            
+            // Fallback: decode basic info from token if not already available
+            if (!sessionData.email) {
               sessionData.email = payload?.email;
               sessionData.name = payload?.name || payload?.given_name;
               sessionData.picture = payload?.picture;
-            } catch {}
+            }
+          } catch {}
+          
+          if (isTokenExpired) {
+            console.log('⚠️ Stored token is expired, attempting refresh before setting session...');
+            
+            // Try to refresh the token before setting the session using inline refresh logic
+            try {
+              const refreshResponse = await fetch(`${config.apiBaseUrl}auth/refresh`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ 
+                  refreshToken: refreshToken 
+                }),
+              });
+              
+              if (refreshResponse.ok) {
+                const refreshData = await refreshResponse.json();
+                if (refreshData.accessToken) {
+                  console.log('✅ Token refreshed during session restoration');
+                  await SecureStore.setItemAsync(TOKEN_KEY, refreshData.accessToken);
+                  sessionData.token = refreshData.accessToken;
+                  (globalThis as any).__glucosnap_token = refreshData.accessToken;
+                  
+                  // Update refresh token if provided
+                  if (refreshData.refreshToken) {
+                    await SecureStore.setItemAsync(REFRESH_TOKEN_KEY, refreshData.refreshToken);
+                    sessionData.refreshToken = refreshData.refreshToken;
+                  }
+                } else {
+                  console.log('❌ No access token in refresh response');
+                  (globalThis as any).__glucosnap_token = stored; // Use old token as fallback
+                }
+              } else {
+                console.log('❌ Token refresh failed during session restoration:', refreshResponse.status);
+                (globalThis as any).__glucosnap_token = stored; // Use old token as fallback
+              }
+            } catch (error) {
+              console.error('❌ Error during token refresh in session restoration:', error);
+              (globalThis as any).__glucosnap_token = stored; // Use old token as fallback
+            }
+          } else {
+            // Token is still valid, use it directly
+            (globalThis as any).__glucosnap_token = stored;
           }
           
           console.log('✅ Session restored for user:', sessionData.email);
           setSession(sessionData);
-          
-          // Set global token for API calls
-          (globalThis as any).__glucosnap_token = stored;
         } else {
           console.log('❌ No complete session found to restore');
           // Don't set session to null here - let it remain null from initial state
